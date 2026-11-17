@@ -4,8 +4,9 @@
 
 SELECT product_name, units_in_stock
 FROM products 
-WHERE  units_in_stock < (SELECT AVG (quantity)
-                          FROM order_details)
+WHERE  units_in_stock < ALL (SELECT AVG (quantity)
+                          FROM order_details
+						  GROUP BY product_id)
 GROUP BY product_id ;
 
 -- 2. Напишите запрос, который выводит общую сумму фрахтов заказов для компаний-заказчиков для 
@@ -14,12 +15,13 @@ GROUP BY product_id ;
 -- Результирующая таблица должна иметь колонки customer_id и freight_sum, строки которой должны
 -- быть отсортированы по сумме фрахтов заказов.
 
-SELECT customer_id, SUM(freight) freight_sum
-FROM orders
-WHERE freight >= (SELECT AVG(freight)
-                   FROM orders)
+SELECT o.customer_id, SUM(o.freight) freight_sum
+FROM orders o
+WHERE o.freight >= (SELECT AVG(o2.freight)
+                   FROM orders o2
+				   WHERE o2.customer_id = o.customer_id)
 AND shipped_date BETWEEN '1996-07-16' AND '1996-07-31'
-GROUP BY customer_id
+GROUP BY o.customer_id
 ORDER BY freight_sum
 
 -- 3. Напишите запрос, который выводит 3 заказа с наибольшей стоимостью, которые были созданы 
@@ -28,12 +30,12 @@ ORDER BY freight_sum
 -- таблица должна иметь колонки customer_id, ship_country и order_price, строки которой должны 
 -- быть отсортированы по стоимости заказа в обратном порядке.
 
-SELECT customer_id, ship_country, SUM(unit_price) order_price
+SELECT o.customer_id, o.ship_country, SUM(od.quantity * unit_price * (1 - discount)) AS order_price
 FROM orders o
 JOIN order_details od USING (order_id)
 WHERE order_date >= '1997-09-01'
 AND ship_country IN ('Argentina','Brazil','Venezuela')
-GROUP BY order_id
+GROUP BY o.order_id, o.customer_id, o.ship_country
 ORDER BY order_price DESC
 LIMIT 3
 
